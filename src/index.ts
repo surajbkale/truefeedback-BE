@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { app } from "./app.js";
 import { connectDB } from "./config/db.js";
+import { startDigestJob } from "./jobs/digestEmail.job.js";
 
 const PORT = process.env["PORT"] ?? 8000;
 
@@ -10,6 +11,7 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
       console.log(`   ENV: ${process.env["NODE_ENV"] ?? "development"}`);
+      startDigestJob();
     });
   } catch (error) {
     console.error("❌ Failed to start server:", error);
