@@ -1,10 +1,14 @@
 import mongoose, { Schema, Document } from "mongoose";
 
+export type NotificationPreference = "instant" | "digest" | "off";
+
 export interface IUser extends Document {
-  firebaseUid: string;        // Firebase UID — the source of truth for identity
-  username: string;           // chosen at registration, unique
-  email: string;              // from Firebase, stored for quick lookups
+  firebaseUid: string;              // Firebase UID — the source of truth for identity
+  username: string;                 // chosen at registration, unique
+  email: string;                    // from Firebase, stored for quick lookups
   isAcceptingMessage: boolean;
+  notificationPreference: NotificationPreference;
+  lastDigestSentAt: Date | null;    // tracks cutoff for daily digest emails
 }
 
 const UserSchema = new Schema<IUser>(
@@ -37,6 +41,15 @@ const UserSchema = new Schema<IUser>(
     isAcceptingMessage: {
       type: Boolean,
       default: true,
+    },
+    notificationPreference: {
+      type: String,
+      enum: ["instant", "digest", "off"],
+      default: "instant",
+    },
+    lastDigestSentAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }

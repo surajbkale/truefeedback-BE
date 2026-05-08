@@ -4,6 +4,7 @@ import { UserModel } from "../models/User.model.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
 import { sendMessageLimiter } from "../middlewares/rateLimiter.middleware.js";
 import { sseManager } from "../utils/sseManager.js";
+import { sendMessageNotificationEmail } from "../utils/email.js";
 import type { AuthRequest } from "../middlewares/auth.middleware.js";
 import type { MessageInput } from "../schemas/index.js";
 
@@ -43,6 +44,13 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
       content: newMessage.content,
       createdAt: newMessage.createdAt,
     });
+
+    // Send instant email notification (fire-and-forget — don't block the response)
+    if (user.notificationPreference === "instant") {
+      sendMessageNotificationEmail(user.email, user.username, content).catch(
+        (err) => console.error("[email] instant notification failed:", err)
+      );
+    }
 
     sendSuccess(res, "Message sent successfully", undefined, 201);
   } catch (error) {

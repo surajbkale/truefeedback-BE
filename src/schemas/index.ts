@@ -34,8 +34,15 @@ export const acceptMessageSchema = z.object({
   isAcceptingMessage: z.boolean(),
 });
 
+export const notificationPreferenceSchema = z.object({
+  notificationPreference: z.enum(["instant", "digest", "off"], {
+    errorMap: () => ({ message: 'Must be "instant", "digest", or "off"' }),
+  }),
+});
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type MessageInput = z.infer<typeof messageSchema>;
 export type AcceptMessageInput = z.infer<typeof acceptMessageSchema>;
+export type NotificationPreferenceInput = z.infer<typeof notificationPreferenceSchema>;
