@@ -4,6 +4,7 @@ import {
   getMessages,
   deleteMessage,
 } from "../controllers/message.controller.js";
+import { streamMessages } from "../controllers/stream.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
 import { messageSchema } from "../schemas/index.js";
@@ -18,3 +19,7 @@ messageRouter.get("/", authenticate, getMessages);
 
 // DELETE /api/messages/:messageId  — authenticated, owner only
 messageRouter.delete("/:messageId", authenticate, deleteMessage);
+
+// GET  /api/messages/stream        — authenticated SSE stream
+// Must be defined AFTER /:messageId to avoid "stream" matching the :messageId param
+messageRouter.get("/stream", authenticate, streamMessages);

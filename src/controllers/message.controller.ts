@@ -3,6 +3,7 @@ import { MessageModel } from "../models/Message.model.js";
 import { UserModel } from "../models/User.model.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
 import { sendMessageLimiter } from "../middlewares/rateLimiter.middleware.js";
+import { sseManager } from "../utils/sseManager.js";
 import type { AuthRequest } from "../middlewares/auth.middleware.js";
 import type { MessageInput } from "../schemas/index.js";
 
@@ -34,7 +35,14 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    await MessageModel.create({ userId: user._id, content });
+    const newMessage = await MessageModel.create({ userId: user._id, content });
+
+    // Push real-time event to recipient if they have an open SSE stream
+    sseManager.emit(user._id.toString(), "new-message", {
+      _id: newMessage._id,
+      content: newMessage.content,
+      createdAt: newMessage.createdAt,
+    });
 
     sendSuccess(res, "Message sent successfully", undefined, 201);
   } catch (error) {
