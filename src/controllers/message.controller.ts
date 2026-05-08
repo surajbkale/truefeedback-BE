@@ -46,7 +46,14 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
 // GET /api/messages  (authenticated)
 export async function getMessages(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const messages = await MessageModel.find({ userId: req.user?.userId })
+    // Look up MongoDB user by firebase uid to get the _id
+    const user = await UserModel.findOne({ firebaseUid: req.firebaseUid }).lean();
+    if (!user) {
+      sendError(res, "User profile not found. Please complete registration.", 404);
+      return;
+    }
+
+    const messages = await MessageModel.find({ userId: user._id })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -62,9 +69,15 @@ export async function deleteMessage(req: AuthRequest, res: Response): Promise<vo
   const { messageId } = req.params as { messageId: string };
 
   try {
+    const user = await UserModel.findOne({ firebaseUid: req.firebaseUid }).lean();
+    if (!user) {
+      sendError(res, "User profile not found", 404);
+      return;
+    }
+
     const result = await MessageModel.findOneAndDelete({
       _id: messageId,
-      userId: req.user?.userId,
+      userId: user._id,
     });
 
     if (!result) {

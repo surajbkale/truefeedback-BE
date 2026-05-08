@@ -1,30 +1,42 @@
 import type { Request, Response, NextFunction } from "express";
-import { verifyToken, type JwtPayload } from "../utils/jwt.js";
+import { adminAuth } from "../config/firebase.js";
+import type { IUser } from "../models/User.model.js";
 
 export interface AuthRequest extends Request {
-  user?: JwtPayload;
+  firebaseUid?: string;
+  firebaseEmail?: string;
+  dbUser?: IUser;             // populated by optional requireDbUser middleware
 }
 
-export function authenticate(
+/**
+ * authenticate
+ * ─────────────
+ * Verifies the Firebase ID token from the Authorization header.
+ * Attaches firebaseUid and firebaseEmail to the request.
+ *
+ * Frontend must send: Authorization: Bearer <firebase-id-token>
+ */
+export async function authenticate(
   req: AuthRequest,
   res: Response,
   next: NextFunction
-): void {
+): Promise<void> {
+  const authHeader = req.headers["authorization"];
+
+  if (!authHeader?.startsWith("Bearer ")) {
+    res.status(401).json({ success: false, message: "No token provided" });
+    return;
+  }
+
+  const idToken = authHeader.slice(7);
+
   try {
-    // Try Authorization header first, then cookie fallback
-    const authHeader = req.headers["authorization"];
-    const token =
-      (authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null) ??
-      (req.cookies as Record<string, string | undefined>)["accessToken"];
-
-    if (!token) {
-      res.status(401).json({ success: false, message: "Not authenticated" });
-      return;
-    }
-
-    req.user = verifyToken(token);
+    const decoded = await adminAuth.verifyIdToken(idToken);
+    req.firebaseUid = decoded.uid;
+    req.firebaseEmail = decoded.email;
     next();
-  } catch {
+  } catch (err) {
+    console.error("Firebase token verification failed:", err);
     res.status(401).json({ success: false, message: "Invalid or expired token" });
   }
 }

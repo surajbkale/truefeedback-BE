@@ -1,16 +1,16 @@
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { UserModel } from "../models/User.model.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
 import type { AuthRequest } from "../middlewares/auth.middleware.js";
 import type { AcceptMessageInput } from "../schemas/index.js";
 
-// PATCH /api/users/accept-messages
+// PATCH /api/users/accept-messages  (authenticated)
 export async function updateAcceptMessages(req: AuthRequest, res: Response): Promise<void> {
   const { isAcceptingMessage } = req.body as AcceptMessageInput;
 
   try {
-    const user = await UserModel.findByIdAndUpdate(
-      req.user?.userId,
+    const user = await UserModel.findOneAndUpdate(
+      { firebaseUid: req.firebaseUid },
       { isAcceptingMessage },
       { new: true }
     );
@@ -29,10 +29,10 @@ export async function updateAcceptMessages(req: AuthRequest, res: Response): Pro
   }
 }
 
-// GET /api/users/accept-messages
+// GET /api/users/accept-messages  (authenticated)
 export async function getAcceptMessages(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const user = await UserModel.findById(req.user?.userId).lean();
+    const user = await UserModel.findOne({ firebaseUid: req.firebaseUid }).lean();
     if (!user) {
       sendError(res, "User not found", 404);
       return;
@@ -47,17 +47,19 @@ export async function getAcceptMessages(req: AuthRequest, res: Response): Promis
   }
 }
 
-// GET /api/users/check-username?username=john
-export async function checkUsernameUnique(req: AuthRequest, res: Response): Promise<void> {
-  const username = (req.query as Record<string, string | undefined>)["username"];
+// GET /api/users/check-username?username=john  (public)
+export async function checkUsernameUnique(req: Request, res: Response): Promise<void> {
+  const username = (req.query as Record<string, string | undefined>)["username"]
+    ?.toLowerCase()
+    .trim();
 
   if (!username) {
-    sendError(res, "Username query param is required", 400);
+    sendError(res, "username query param is required", 400);
     return;
   }
 
   try {
-    const exists = await UserModel.exists({ username, isVerified: true });
+    const exists = await UserModel.exists({ username });
     if (exists) {
       sendError(res, "Username is already taken", 409);
       return;
