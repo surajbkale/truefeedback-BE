@@ -28,6 +28,34 @@ export const messageSchema = z.object({
     .max(300, "Message must be no longer than 300 characters"),
 });
 
+// ── Reaction ──────────────────────────────────────────────────────────────────
+
+// Single emoji character or null to clear
+const ALLOWED_EMOJIS = ["❤️", "😂", "😮", "😢", "🔥", "👏"] as const;
+
+export const reactionSchema = z.object({
+  emoji: z
+    .string()
+    .nullable()
+    .refine(
+      (v) => v === null || (ALLOWED_EMOJIS as readonly string[]).includes(v),
+      { message: "Invalid emoji. Allowed: ❤️ 😂 😮 😢 🔥 👏" }
+    ),
+});
+
+export const REACTION_EMOJIS = ALLOWED_EMOJIS;
+
+// ── Update (star / pin) ───────────────────────────────────────────────────────
+
+export const updateMessageSchema = z
+  .object({
+    isStarred: z.boolean().optional(),
+    isPinned: z.boolean().optional(),
+  })
+  .refine((d) => d.isStarred !== undefined || d.isPinned !== undefined, {
+    message: "Provide at least one of isStarred or isPinned",
+  });
+
 // ── User Settings ─────────────────────────────────────────────────────────────
 
 export const acceptMessageSchema = z.object({
@@ -44,5 +72,9 @@ export const notificationPreferenceSchema = z.object({
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type MessageInput = z.infer<typeof messageSchema>;
+export type ReactionInput = z.infer<typeof reactionSchema>;
+export type UpdateMessageInput = z.infer<typeof updateMessageSchema>;
 export type AcceptMessageInput = z.infer<typeof acceptMessageSchema>;
 export type NotificationPreferenceInput = z.infer<typeof notificationPreferenceSchema>;
+
+
