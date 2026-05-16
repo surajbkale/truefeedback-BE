@@ -24,6 +24,10 @@ const MessageSchema = new Schema<IMessage>(
   { timestamps: { createdAt: true, updatedAt: false } }
 );
 
+// Compound index for fast per-user analytics queries (stats aggregation, sorted message lists)
+MessageSchema.index({ userId: 1, createdAt: -1 });
+
+
 export const MessageModel =
   (mongoose.models["Message"] as mongoose.Model<IMessage>) ??
   mongoose.model<IMessage>("Message", MessageSchema);
