@@ -68,6 +68,22 @@ export const notificationPreferenceSchema = z.object({
   }),
 });
 
+// ── Profile ───────────────────────────────────────────────────────────────────
+
+export const updateProfileSchema = z.object({
+  bio: z.string().max(200, "Bio must be 200 characters or fewer").nullable().optional(),
+  avatarUrl: z.string().url("avatarUrl must be a valid URL").nullable().optional(),
+  welcomeMessage: z
+    .string()
+    .max(120, "Welcome message must be 120 characters or fewer")
+    .nullable()
+    .optional(),
+  themeColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "themeColor must be a valid 6-digit hex color")
+    .optional(),
+});
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -76,5 +92,7 @@ export type ReactionInput = z.infer<typeof reactionSchema>;
 export type UpdateMessageInput = z.infer<typeof updateMessageSchema>;
 export type AcceptMessageInput = z.infer<typeof acceptMessageSchema>;
 export type NotificationPreferenceInput = z.infer<typeof notificationPreferenceSchema>;
+export type ProfileInput = z.infer<typeof updateProfileSchema>;
+
 
 

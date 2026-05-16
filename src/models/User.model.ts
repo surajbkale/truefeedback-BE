@@ -9,6 +9,11 @@ export interface IUser extends Document {
   isAcceptingMessage: boolean;
   notificationPreference: NotificationPreference;
   lastDigestSentAt: Date | null;    // tracks cutoff for daily digest emails
+  // ── Profile customization ──────────────────────────────────────────────
+  bio: string | null;
+  avatarUrl: string | null;
+  welcomeMessage: string | null;
+  themeColor: string;               // hex color, e.g. "#6366f1"
 }
 
 const UserSchema = new Schema<IUser>(
@@ -50,6 +55,26 @@ const UserSchema = new Schema<IUser>(
     lastDigestSentAt: {
       type: Date,
       default: null,
+    },
+    // ── Profile customization ──────────────────────────────────────────────
+    bio: {
+      type: String,
+      default: null,
+      maxlength: [200, "Bio must be 200 characters or fewer"],
+    },
+    avatarUrl: {
+      type: String,
+      default: null,
+    },
+    welcomeMessage: {
+      type: String,
+      default: null,
+      maxlength: [120, "Welcome message must be 120 characters or fewer"],
+    },
+    themeColor: {
+      type: String,
+      default: "#6366f1",
+      match: [/^#[0-9a-fA-F]{6}$/, "themeColor must be a valid 6-digit hex color"],
     },
   },
   { timestamps: true }
