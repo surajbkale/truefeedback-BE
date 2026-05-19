@@ -11,7 +11,7 @@ import type { MessageInput, ReactionInput, UpdateMessageInput, ReplyMessageInput
 // POST /api/messages/send/:username  (public — no auth needed)
 export async function sendMessage(req: Request, res: Response): Promise<void> {
   const { username } = req.params as { username: string };
-  const { content } = req.body as MessageInput;
+  const { content, turnstileToken } = req.body as MessageInput;
 
   // Rate limit by IP
   const ip =
@@ -19,9 +19,39 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
     req.ip ??
     "unknown";
 
-  if (sendMessageLimiter(ip)) {
+  if (await sendMessageLimiter(ip)) {
     sendError(res, "Too many requests. Please wait a few minutes.", 429);
     return;
+  }
+
+  // Verify Turnstile token
+  const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
+  if (turnstileSecret) {
+    if (!turnstileToken) {
+      sendError(res, "Turnstile token is required", 400);
+      return;
+    }
+    
+    try {
+      const tsRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          secret: turnstileSecret,
+          response: turnstileToken,
+          remoteip: ip,
+        }),
+      });
+      const tsData = await tsRes.json() as { success: boolean };
+      if (!tsData.success) {
+        sendError(res, "Failed captcha verification", 403);
+        return;
+      }
+    } catch (err) {
+      console.error("Turnstile verification error:", err);
+      sendError(res, "Failed captcha verification", 403);
+      return;
+    }
   }
 
   try {

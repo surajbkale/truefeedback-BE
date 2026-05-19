@@ -26,6 +26,7 @@ export const messageSchema = z.object({
     .string()
     .min(10, "Message must be at least 10 characters")
     .max(300, "Message must be no longer than 300 characters"),
+  turnstileToken: z.string().min(1, "Turnstile token is required"),
 });
 
 // ── Reaction ──────────────────────────────────────────────────────────────────
