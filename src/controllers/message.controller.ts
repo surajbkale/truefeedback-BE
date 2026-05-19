@@ -61,8 +61,15 @@ export async function sendMessage(req: Request, res: Response): Promise<void> {
 
 // GET /api/messages  (authenticated)
 // ?filter=starred → only starred messages
+// ?search=hello → text search
+// ?page=1&limit=20 → pagination
 export async function getMessages(req: AuthRequest, res: Response): Promise<void> {
-  const { filter } = req.query as { filter?: string };
+  const { filter, search, page = "1", limit = "20" } = req.query as {
+    filter?: string;
+    search?: string;
+    page?: string;
+    limit?: string;
+  };
 
   try {
     const user = await UserModel.findOne({ firebaseUid: req.firebaseUid }).lean();
@@ -74,11 +81,34 @@ export async function getMessages(req: AuthRequest, res: Response): Promise<void
     const baseQuery: Record<string, unknown> = { userId: user._id };
     if (filter === "starred") baseQuery.isStarred = true;
 
-    const messages = await MessageModel.find(baseQuery)
-      .sort({ isPinned: -1, createdAt: -1 }) // pinned always first
-      .lean();
+    if (search && search.trim() !== "") {
+      baseQuery.$text = { $search: search.trim() };
+    }
 
-    sendSuccess(res, "Messages fetched", messages);
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 20);
+    const skip = (pageNum - 1) * limitNum;
+
+    // We can run count and find in parallel
+    const [total, messages] = await Promise.all([
+      MessageModel.countDocuments(baseQuery),
+      MessageModel.find(baseQuery)
+        // If searching, we might want to sort by text score, but for simplicity
+        // and consistency we'll keep the pinned-first + newest-first sort.
+        .sort({ isPinned: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+    ]);
+
+    const totalPages = Math.ceil(total / limitNum);
+
+    sendSuccess(res, "Messages fetched", {
+      messages,
+      total,
+      page: pageNum,
+      totalPages,
+    });
   } catch (error) {
     console.error("getMessages error:", error);
     sendError(res, "Error fetching messages");

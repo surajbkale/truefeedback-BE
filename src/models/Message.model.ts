@@ -44,8 +44,10 @@ MessageSchema.index({ userId: 1, createdAt: -1 });
 // Fast pinned-first + starred filter queries
 MessageSchema.index({ userId: 1, isPinned: -1, createdAt: -1 });
 MessageSchema.index({ userId: 1, isStarred: 1, createdAt: -1 });
-
+// Text search index for content
+MessageSchema.index({ content: "text" });
 
 export const MessageModel =
   (mongoose.models["Message"] as mongoose.Model<IMessage>) ??
   mongoose.model<IMessage>("Message", MessageSchema);
+
