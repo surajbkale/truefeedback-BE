@@ -170,6 +170,9 @@ export async function getPublicProfile(req: Request, res: Response): Promise<voi
       return;
     }
 
+    const { MessageModel } = await import("../models/Message.model.js");
+    const messageCount = await MessageModel.countDocuments({ userId: user._id });
+
     sendSuccess(res, "Profile fetched", {
       username: user.username,
       bio: user.bio ?? null,
@@ -177,6 +180,7 @@ export async function getPublicProfile(req: Request, res: Response): Promise<voi
       welcomeMessage: user.welcomeMessage ?? null,
       themeColor: user.themeColor ?? "#6366f1",
       isAcceptingMessage: user.isAcceptingMessage,
+      messageCount,
     });
   } catch (error) {
     console.error("getPublicProfile error:", error);
