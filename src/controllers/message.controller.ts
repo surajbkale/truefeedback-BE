@@ -6,7 +6,7 @@ import { sendMessageLimiter } from "../middlewares/rateLimiter.middleware.js";
 import { sseManager } from "../utils/sseManager.js";
 import { sendMessageNotificationEmail } from "../utils/email.js";
 import type { AuthRequest } from "../middlewares/auth.middleware.js";
-import type { MessageInput, ReactionInput, UpdateMessageInput } from "../schemas/index.js";
+import type { MessageInput, ReactionInput, UpdateMessageInput, ReplyMessageInput } from "../schemas/index.js";
 
 // POST /api/messages/send/:username  (public — no auth needed)
 export async function sendMessage(req: Request, res: Response): Promise<void> {
@@ -208,6 +208,68 @@ export async function updateMessage(req: AuthRequest, res: Response): Promise<vo
   } catch (error) {
     console.error("updateMessage error:", error);
     sendError(res, "Error updating message");
+  }
+}
+
+// PATCH /api/messages/:messageId/reply  (authenticated — owner only)
+export async function replyToMessage(req: AuthRequest, res: Response): Promise<void> {
+  const { messageId } = req.params as { messageId: string };
+  const { reply, isReplyPublic } = req.body as ReplyMessageInput;
+
+  try {
+    const user = await UserModel.findOne({ firebaseUid: req.firebaseUid }).lean();
+    if (!user) {
+      sendError(res, "User profile not found", 404);
+      return;
+    }
+
+    const updated = await MessageModel.findOneAndUpdate(
+      { _id: messageId, userId: user._id },
+      { $set: { reply, isReplyPublic } },
+      { new: true, select: "reply isReplyPublic" }
+    ).lean();
+
+    if (!updated) {
+      sendError(res, "Message not found", 404);
+      return;
+    }
+
+    sendSuccess(res, "Reply updated", {
+      reply: updated.reply,
+      isReplyPublic: updated.isReplyPublic,
+    });
+  } catch (error) {
+    console.error("replyToMessage error:", error);
+    sendError(res, "Error updating reply");
+  }
+}
+
+// GET /api/messages/public/:username  (public)
+export async function getPublicThreads(req: Request, res: Response): Promise<void> {
+  const { username } = req.params as { username: string };
+
+  try {
+    const user = await UserModel.findOne({ username: username.toLowerCase() }).lean();
+    if (!user) {
+      sendError(res, "User not found", 404);
+      return;
+    }
+
+    const threads = await MessageModel.find({
+      userId: user._id,
+      isReplyPublic: true,
+      reply: { $ne: null }
+    })
+      .sort({ createdAt: -1 })
+      .select("content reply createdAt")
+      .lean();
+
+    sendSuccess(res, "Public threads fetched", {
+      threads
+    });
+  } catch (error) {
+    console.error("getPublicThreads error:", error);
+    sendError(res, "Error fetching public threads");
   }
 }
 

@@ -56,6 +56,16 @@ export const updateMessageSchema = z
     message: "Provide at least one of isStarred or isPinned",
   });
 
+// ── Reply ─────────────────────────────────────────────────────────────────────
+
+export const replyMessageSchema = z.object({
+  reply: z
+    .string()
+    .max(500, "Reply must be no longer than 500 characters")
+    .nullable(),
+  isReplyPublic: z.boolean(),
+});
+
 // ── User Settings ─────────────────────────────────────────────────────────────
 
 export const acceptMessageSchema = z.object({
@@ -90,6 +100,7 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export type MessageInput = z.infer<typeof messageSchema>;
 export type ReactionInput = z.infer<typeof reactionSchema>;
 export type UpdateMessageInput = z.infer<typeof updateMessageSchema>;
+export type ReplyMessageInput = z.infer<typeof replyMessageSchema>;
 export type AcceptMessageInput = z.infer<typeof acceptMessageSchema>;
 export type NotificationPreferenceInput = z.infer<typeof notificationPreferenceSchema>;
 export type ProfileInput = z.infer<typeof updateProfileSchema>;

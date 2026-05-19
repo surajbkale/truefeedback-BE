@@ -4,6 +4,8 @@ export interface IMessage extends Document {
   userId: Types.ObjectId;
   content: string;
   reaction: string | null;
+  reply: string | null;
+  isReplyPublic: boolean;
   isStarred: boolean;
   isPinned: boolean;
   createdAt: Date;
@@ -27,6 +29,15 @@ const MessageSchema = new Schema<IMessage>(
       type: String,
       default: null,
     },
+    reply: {
+      type: String,
+      default: null,
+      maxlength: [500, "Reply must be no longer than 500 characters"],
+    },
+    isReplyPublic: {
+      type: Boolean,
+      default: false,
+    },
     isStarred: {
       type: Boolean,
       default: false,
@@ -44,6 +55,8 @@ MessageSchema.index({ userId: 1, createdAt: -1 });
 // Fast pinned-first + starred filter queries
 MessageSchema.index({ userId: 1, isPinned: -1, createdAt: -1 });
 MessageSchema.index({ userId: 1, isStarred: 1, createdAt: -1 });
+// Fast public threads queries
+MessageSchema.index({ userId: 1, isReplyPublic: 1, createdAt: -1 });
 // Text search index for content
 MessageSchema.index({ content: "text" });
 
