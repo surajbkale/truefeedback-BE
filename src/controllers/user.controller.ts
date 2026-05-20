@@ -1,16 +1,16 @@
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { UserModel } from "../models/User.model.js";
 import { sendSuccess, sendError } from "../utils/apiResponse.js";
 import type { AuthRequest } from "../middlewares/auth.middleware.js";
-import type { AcceptMessageInput } from "../schemas/index.js";
+import type { AcceptMessageInput, NotificationPreferenceInput, ProfileInput } from "../schemas/index.js";
 
-// PATCH /api/users/accept-messages
+// PATCH /api/users/accept-messages  (authenticated)
 export async function updateAcceptMessages(req: AuthRequest, res: Response): Promise<void> {
   const { isAcceptingMessage } = req.body as AcceptMessageInput;
 
   try {
-    const user = await UserModel.findByIdAndUpdate(
-      req.user?.userId,
+    const user = await UserModel.findOneAndUpdate(
+      { firebaseUid: req.firebaseUid },
       { isAcceptingMessage },
       { new: true }
     );
@@ -29,10 +29,10 @@ export async function updateAcceptMessages(req: AuthRequest, res: Response): Pro
   }
 }
 
-// GET /api/users/accept-messages
+// GET /api/users/accept-messages  (authenticated)
 export async function getAcceptMessages(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const user = await UserModel.findById(req.user?.userId).lean();
+    const user = await UserModel.findOne({ firebaseUid: req.firebaseUid }).lean();
     if (!user) {
       sendError(res, "User not found", 404);
       return;
@@ -47,17 +47,19 @@ export async function getAcceptMessages(req: AuthRequest, res: Response): Promis
   }
 }
 
-// GET /api/users/check-username?username=john
-export async function checkUsernameUnique(req: AuthRequest, res: Response): Promise<void> {
-  const username = (req.query as Record<string, string | undefined>)["username"];
+// GET /api/users/check-username?username=john  (public)
+export async function checkUsernameUnique(req: Request, res: Response): Promise<void> {
+  const username = (req.query as Record<string, string | undefined>)["username"]
+    ?.toLowerCase()
+    .trim();
 
   if (!username) {
-    sendError(res, "Username query param is required", 400);
+    sendError(res, "username query param is required", 400);
     return;
   }
 
   try {
-    const exists = await UserModel.exists({ username, isVerified: true });
+    const exists = await UserModel.exists({ username });
     if (exists) {
       sendError(res, "Username is already taken", 409);
       return;
@@ -68,3 +70,121 @@ export async function checkUsernameUnique(req: AuthRequest, res: Response): Prom
     sendError(res, "Error checking username");
   }
 }
+
+// GET /api/users/notification-preference  (authenticated)
+export async function getNotificationPreference(
+  req: AuthRequest,
+  res: Response
+): Promise<void> {
+  try {
+    const user = await UserModel.findOne({ firebaseUid: req.firebaseUid }).lean();
+    if (!user) {
+      sendError(res, "User not found", 404);
+      return;
+    }
+    sendSuccess(res, "Preference fetched", {
+      notificationPreference: user.notificationPreference,
+    });
+  } catch (error) {
+    console.error("getNotificationPreference error:", error);
+    sendError(res, "Error fetching preference");
+  }
+}
+
+// PATCH /api/users/notification-preference  (authenticated)
+export async function updateNotificationPreference(
+  req: AuthRequest,
+  res: Response
+): Promise<void> {
+  const { notificationPreference } = req.body as NotificationPreferenceInput;
+
+  try {
+    const user = await UserModel.findOneAndUpdate(
+      { firebaseUid: req.firebaseUid },
+      { notificationPreference },
+      { new: true }
+    );
+
+    if (!user) {
+      sendError(res, "User not found", 404);
+      return;
+    }
+
+    sendSuccess(res, "Notification preference updated", {
+      notificationPreference: user.notificationPreference,
+    });
+  } catch (error) {
+    console.error("updateNotificationPreference error:", error);
+    sendError(res, "Error updating preference");
+  }
+}
+
+// PATCH /api/users/profile  (authenticated)
+export async function updateProfile(req: AuthRequest, res: Response): Promise<void> {
+  const { bio, avatarUrl, welcomeMessage, themeColor } = req.body as ProfileInput;
+
+  try {
+    const patch: Record<string, unknown> = {};
+    if (bio !== undefined) patch.bio = bio;
+    if (avatarUrl !== undefined) patch.avatarUrl = avatarUrl;
+    if (welcomeMessage !== undefined) patch.welcomeMessage = welcomeMessage;
+    if (themeColor !== undefined) patch.themeColor = themeColor;
+
+    const user = await UserModel.findOneAndUpdate(
+      { firebaseUid: req.firebaseUid },
+      { $set: patch },
+      { new: true, select: "username bio avatarUrl welcomeMessage themeColor" }
+    ).lean();
+
+    if (!user) {
+      sendError(res, "User not found", 404);
+      return;
+    }
+
+    sendSuccess(res, "Profile updated", {
+      username: user.username,
+      bio: user.bio,
+      avatarUrl: user.avatarUrl,
+      welcomeMessage: user.welcomeMessage,
+      themeColor: user.themeColor,
+    });
+  } catch (error) {
+    console.error("updateProfile error:", error);
+    sendError(res, "Error updating profile");
+  }
+}
+
+// GET /api/users/profile/:username  (public)
+export async function getPublicProfile(req: Request, res: Response): Promise<void> {
+  const { username } = req.params as { username: string };
+
+  try {
+    const user = await UserModel.findOne(
+      { username: username.toLowerCase() },
+      // Only expose safe public fields — no email, no firebaseUid
+      "username bio avatarUrl welcomeMessage themeColor isAcceptingMessage"
+    ).lean();
+
+    if (!user) {
+      sendError(res, "User not found", 404);
+      return;
+    }
+
+    const { MessageModel } = await import("../models/Message.model.js");
+    const messageCount = await MessageModel.countDocuments({ userId: user._id });
+
+    sendSuccess(res, "Profile fetched", {
+      username: user.username,
+      bio: user.bio ?? null,
+      avatarUrl: user.avatarUrl ?? null,
+      welcomeMessage: user.welcomeMessage ?? null,
+      themeColor: user.themeColor ?? "#6366f1",
+      isAcceptingMessage: user.isAcceptingMessage,
+      messageCount,
+    });
+  } catch (error) {
+    console.error("getPublicProfile error:", error);
+    sendError(res, "Error fetching profile");
+  }
+}
+
