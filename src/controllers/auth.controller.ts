@@ -93,6 +93,7 @@ export async function getMe(req: AuthRequest, res: Response): Promise<void> {
       username: user.username,
       email: user.email,
       isAcceptingMessage: user.isAcceptingMessage,
+      avatarUrl: user.avatarUrl,
     });
   } catch (error) {
     console.error("getMe error:", error);
